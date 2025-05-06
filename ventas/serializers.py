@@ -1,10 +1,7 @@
 from rest_framework import serializers
-from .models import User, Product, Transaction
+from .models import Product, Transaction
 
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = '__all__'
+
 
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:

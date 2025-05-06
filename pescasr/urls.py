@@ -3,5 +3,6 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include('ventas.urls')),  # Asegúrate de que el nombre coincida
+    path('api/usuarios/', include('users.urls')),
+    path('api/', include('ventas.urls')),  # rutas de productos y transacciones
 ]
