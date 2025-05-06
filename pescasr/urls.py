@@ -3,5 +3,5 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('ventas.urls')),  # Ahora se incluye el nuevo archivo de rutas de la app ventas
+    path('api/', include('ventas.urls')),  # Asegúrate de que el nombre coincida
 ]

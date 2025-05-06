@@ -1,11 +1,15 @@
 from rest_framework import viewsets
-from .serializer import TransactionSerializer, CategorySerializer
-from .models import Transaction, Category
+from .models import User, Product, Transaction
+from .serializers import UserSerializer, ProductSerializer, TransactionSerializer
 
-class TransactionView(viewsets.ModelViewSet):
-    serializer_class = TransactionSerializer
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
+class ProductViewSet(viewsets.ModelViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+
+class TransactionViewSet(viewsets.ModelViewSet):
     queryset = Transaction.objects.all()
-
-class CategoryView(viewsets.ModelViewSet):
-    serializer_class = CategorySerializer
-    queryset = Category.objects.all()
+    serializer_class = TransactionSerializer
