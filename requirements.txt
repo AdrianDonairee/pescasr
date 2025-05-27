@@ -1,11 +1,11 @@
 asgiref==3.8.1
 contourpy==1.2.1
 cycler==0.12.1
-Django==5.1.7
+Django==5.1.8
 fonttools==4.53.0
 kiwisolver==1.4.5
 matplotlib==3.9.0
-mysql-connector-python==8.4.0
+mysql-connector-python==9.1.0
 numpy==2.0.0
 opencv-python==4.10.0.84
 packaging==24.1
