@@ -80,16 +80,17 @@ WSGI_APPLICATION = 'pescasr.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'pescasr',                 # nombre de tu base de datos
-        'USER': 'root',
-        'PASSWORD': 'Ecommerce2025$',
-        'HOST': 'localhost',
-        'PORT': '3306',
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': 'pescasrv2',                 # nombre de tu base de datos
+            'USER': 'admin',
+            'PASSWORD': 'Ecommerce2025$',
+            'HOST': 'localhost',
+            'PORT': '3306',
+        }
     }
-}
 
 
 
@@ -140,3 +141,5 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     # Podés agregar más URLs desde donde se conecte tu frontend
 ]
+
+AUTH_USER_MODEL = 'users.User'
