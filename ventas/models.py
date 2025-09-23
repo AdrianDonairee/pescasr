@@ -1,12 +1,8 @@
 from django.db import models
+from users.models import User
 
-class User(models.Model):
-    nombre = models.CharField(max_length=100)
-    email = models.EmailField(unique=True)
-    contraseña = models.CharField(max_length=128)
 
-    def __str__(self):
-        return self.nombre
+# from users.models import User  # si otros modelos lo usan
 
 
 class Product(models.Model):
