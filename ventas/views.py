@@ -8,13 +8,18 @@ class IsOwnerOrAdmin(permissions.BasePermission):
         # Solo el dueño o admin puede ver/modificar su transacción
         return request.user.is_staff or obj.usuario == request.user
 
-class ProductViewSet(viewsets.ReadOnlyModelViewSet):
+class ProductViewSet(viewsets.ModelViewSet):
     """
     Los productos son públicos para listar y ver detalle.
+    Solo admin puede crear, actualizar o borrar productos.
     """
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
-    permission_classes = [permissions.AllowAny]
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [permissions.IsAdminUser()]
+        return [permissions.AllowAny()]
 
 class TransactionViewSet(viewsets.ModelViewSet):
     """
@@ -32,5 +37,12 @@ class TransactionViewSet(viewsets.ModelViewSet):
         return qs.filter(usuario=self.request.user)
 
     def perform_create(self, serializer):
-        # Cuando se crea una transacción, asigna el usuario actual
+        producto = serializer.validated_data.get('producto')
+        cantidad = serializer.validated_data.get('cantidad', 0)
+        if producto and cantidad:
+            if producto.stock < cantidad:
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError({'detail': 'No hay suficiente stock.'})
+            producto.stock -= cantidad
+            producto.save()
         serializer.save(usuario=self.request.user)
