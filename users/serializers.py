@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
 from .models import User
 
 class UserSerializer(serializers.ModelSerializer):
@@ -24,6 +26,13 @@ class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["username", "email", "first_name", "last_name", "password"]
+
+    def validate_email(self, value):
+        try:
+            validate_email(value)
+        except ValidationError:
+            raise serializers.ValidationError("Formato de email inválido")
+        return value
 
     def create(self, validated_data):
         password = validated_data.pop("password")
