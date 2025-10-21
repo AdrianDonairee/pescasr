@@ -1,12 +1,14 @@
 # ventas/views.py
 from rest_framework import viewsets, permissions
+from rest_framework.exceptions import ValidationError
 from .models import Product, Transaction
 from .serializers import ProductSerializer, TransactionSerializer
 
 class IsOwnerOrAdmin(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
-        # Solo el dueño o admin puede ver/modificar su transacción
-        return request.user.is_staff or obj.usuario == request.user
+        if request.user and request.user.is_staff:
+            return True
+        return getattr(obj, 'usuario', None) == request.user
 
 class ProductViewSet(viewsets.ModelViewSet):
     """
@@ -28,21 +30,23 @@ class TransactionViewSet(viewsets.ModelViewSet):
     """
     queryset = Transaction.objects.all()
     serializer_class = TransactionSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwnerOrAdmin]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        qs = super().get_queryset()
-        if self.request.user.is_staff:
-            return qs
-        return qs.filter(usuario=self.request.user)
+        user = self.request.user
+        if user.is_staff:
+            return Transaction.objects.all()
+        return Transaction.objects.filter(usuario=user)
 
     def perform_create(self, serializer):
         producto = serializer.validated_data.get('producto')
-        cantidad = serializer.validated_data.get('cantidad', 0)
-        if producto and cantidad:
-            if producto.stock < cantidad:
-                from rest_framework.exceptions import ValidationError
-                raise ValidationError({'detail': 'No hay suficiente stock.'})
-            producto.stock -= cantidad
-            producto.save()
+        cantidad = serializer.validated_data.get('cantidad') or 0
+        if producto is None:
+            raise ValidationError({'producto': 'Producto requerido.'})
+        if cantidad <= 0:
+            raise ValidationError({'cantidad': 'Cantidad debe ser > 0.'})
+        if producto.stock < cantidad:
+            raise ValidationError({'detail': 'No hay suficiente stock.'})
+        producto.stock -= cantidad
+        producto.save()
         serializer.save(usuario=self.request.user)

@@ -1,10 +1,12 @@
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from django.contrib.auth import login, logout
-from django.views.decorators.csrf import ensure_csrf_cookie
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.tokens import RefreshToken
+
 from .models import User
-from .serializers import UserSerializer, LoginSerializer, RegisterSerializer
+from .serializers import UserSerializer, RegisterSerializer, UpdateUserSerializer
 
 class IsSelfOrAdmin(permissions.BasePermission):
     """
@@ -22,38 +24,52 @@ class UserViewSet(viewsets.ModelViewSet):
         if self.action in ["list", "create", "destroy"]:
             return [permissions.IsAdminUser()]
         elif self.action in ["retrieve", "update", "partial_update"]:
-            return [permissions.IsAuthenticated(), IsSelfOrAdmin()]
+            return [IsAuthenticated(), IsSelfOrAdmin()]
         return [permissions.AllowAny()]
 
 @api_view(["POST"])
 @permission_classes([permissions.AllowAny])
 def register(request):
+    """
+    Registro público. No usa sesiones; el frontend debe pedir tokens en /api/user/login/ (o /api/token/).
+    """
     serializer = RegisterSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
-        # (Opcional) loguear automáticamente después de registrar:
-        login(request, user)
         return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
 @api_view(["POST"])
 @permission_classes([permissions.AllowAny])
-@ensure_csrf_cookie
-def login_view(request):
-    serializer = LoginSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    user = serializer.validated_data["user"]
-    login(request, user)  # Usa sesiones + cookie
-    return Response({"message": "Login exitoso", "user": UserSerializer(user).data})
+def logout(request):
+    """
+    Logout: recibe {"refresh": "<refresh_token>"} y lo blacklistea para invalidarlo.
+    """
+    refresh = request.data.get('refresh')
+    if not refresh:
+        return Response({'detail': 'Refresh token requerido.'}, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view(["POST"])
-@permission_classes([permissions.IsAuthenticated])
-def logout_view(request):
-    logout(request)
-    return Response({"message": "Logout exitoso"})
+    try:
+        token = RefreshToken(refresh)
+        token.blacklist()
+        return Response({'detail': 'Logout exitoso.'}, status=status.HTTP_205_RESET_CONTENT)
+    except Exception:
+        return Response({'detail': 'Token inválido o ya revocado.'}, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view(["GET"])
-@permission_classes([permissions.IsAuthenticated])
-def me(request):
-    return Response(UserSerializer(request.user).data)
+class ProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(UserSerializer(request.user).data)
+
+    def put(self, request):
+        serializer = UpdateUserSerializer(request.user, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(UserSerializer(request.user).data)
+
+    def patch(self, request):
+        serializer = UpdateUserSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(UserSerializer(request.user).data)
