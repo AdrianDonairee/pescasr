@@ -16,6 +16,16 @@ class RegisterSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'password']
 
+    def validate_username(self, value):
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError('El nombre de usuario ya está en uso.')
+        return value
+
+    def validate_email(self, value):
+        if value and User.objects.filter(email=value).exists():
+            raise serializers.ValidationError('El email ya está registrado.')
+        return value
+
     def validate_password(self, value):
         validate_password(value, self.instance)
         return value

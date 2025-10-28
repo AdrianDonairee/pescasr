@@ -35,7 +35,7 @@ class Transaction(models.Model):
 
     usuario = models.ForeignKey(User, on_delete=models.CASCADE)
     producto = models.ForeignKey(Product, on_delete=models.CASCADE, null=True, blank=True)  # Producto solo si es Carrito
-    cantidad = models.PositiveIntegerField(null=True, blank=True)  # Cantidad solo si es Carrito
+    cantidad = models.PositiveIntegerField(null=True, blank=True)  # Cantidad solo si el estado es Carrito
     total = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # Total solo si es Pedido
     fecha = models.DateTimeField(null=True, blank=True)  # Fecha solo si es Pedido
     estado = models.CharField(max_length=20, choices=ESTADOS)
