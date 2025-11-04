@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+from corsheaders.defaults import default_headers
 import os
 
 
@@ -37,6 +38,7 @@ ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 INSTALLED_APPS = [
     'ventas',
     'users',
+    "productos",
     'django.contrib.admin',
     'corsheaders',
     'rest_framework',
@@ -160,10 +162,16 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     # Podés agregar más URLs desde donde se conecte tu frontend
 ]
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "Authorization",
+]
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
 ]
+
 
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"

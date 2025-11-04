@@ -5,9 +5,17 @@ from django.contrib.auth.password_validation import validate_password
 User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
+    is_staff = serializers.BooleanField(read_only=True)
+    is_superuser = serializers.BooleanField(read_only=True)
+    isAdmin = serializers.SerializerMethodField()
+
+    def get_isAdmin(self, obj):
+        return bool(obj.is_staff or obj.is_superuser)
+
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name',
+                  'is_staff', 'is_superuser', 'isAdmin']
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True)
