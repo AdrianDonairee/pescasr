@@ -1,8 +1,6 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 from users.models import User
-
-
-
 
 
 class Product(models.Model):
@@ -34,10 +32,10 @@ class Transaction(models.Model):
     ]
 
     usuario = models.ForeignKey(User, on_delete=models.CASCADE)
-    producto = models.ForeignKey(Product, on_delete=models.CASCADE, null=True, blank=True)  # Producto solo si es Carrito
-    cantidad = models.PositiveIntegerField(null=True, blank=True)  # Cantidad solo si es Carrito
-    total = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # Total solo si es Pedido
-    fecha = models.DateTimeField(null=True, blank=True)  # Fecha solo si es Pedido
+    producto = models.ForeignKey(Product, on_delete=models.CASCADE, null=True, blank=True)
+    cantidad = models.PositiveIntegerField(null=True, blank=True)
+    total = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    fecha = models.DateTimeField(null=True, blank=True)
     estado = models.CharField(max_length=20, choices=ESTADOS)
 
     def clean(self):
@@ -50,5 +48,7 @@ class Transaction(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"Transacción {self.id} - {self.usuario.nombre} - {self.estado}"
+        # muestra username si existe, sino el id
+        user_repr = getattr(self.usuario, "username", str(self.usuario))
+        return f"Transacción {self.id} - {user_repr} - {self.estado}"
 

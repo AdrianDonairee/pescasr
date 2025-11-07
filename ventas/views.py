@@ -2,13 +2,21 @@
 from rest_framework import viewsets, permissions
 from rest_framework.exceptions import ValidationError
 from .models import Product, Transaction
-from .serializers import ProductSerializer, TransactionSerializer
+from .serializers import ProductSerializer, TransactionSerializer, CartItemSerializer
+from decimal import Decimal
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.db import transaction as db_transaction
+from django.utils import timezone
+
 
 class IsOwnerOrAdmin(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.user and request.user.is_staff:
             return True
         return getattr(obj, 'usuario', None) == request.user
+
 
 class ProductViewSet(viewsets.ModelViewSet):
     """
@@ -22,6 +30,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             return [permissions.IsAdminUser()]
         return [permissions.AllowAny()]
+
 
 class TransactionViewSet(viewsets.ModelViewSet):
     """
@@ -50,3 +59,128 @@ class TransactionViewSet(viewsets.ModelViewSet):
         producto.stock -= cantidad
         producto.save()
         serializer.save(usuario=self.request.user)
+
+
+class CartAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        # Obtener items del carrito del usuario (estado 'Carrito')
+        items = Transaction.objects.filter(usuario=request.user, estado='Carrito')
+        serialized = []
+        for tx in items:
+            prod = tx.producto
+            serialized.append({
+                "id": tx.id,
+                "producto": {
+                    "id": prod.id,
+                    "nombre": prod.nombre,
+                    "descripcion": prod.descripcion,
+                    "precio": str(prod.precio),
+                    "stock": prod.stock
+                } if prod else None,
+                "cantidad": tx.cantidad,
+                "total": str(tx.total or (prod.precio * tx.cantidad) if prod else tx.total),
+            })
+        return Response(serialized, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        # Espera body: { "items": [{ "producto_id": 1, "cantidad": 2 }, ...] }
+        items = request.data.get("items")
+        if items is None:
+            return Response({"detail": "Missing items list"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validar items
+        serializer = CartItemSerializer(data=items, many=True)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        # Borra items carrito existentes del usuario
+        Transaction.objects.filter(usuario=request.user, estado='Carrito').delete()
+
+        created = []
+        for itm in serializer.validated_data:
+            try:
+                prod = Product.objects.get(pk=itm["producto_id"])
+            except Product.DoesNotExist:
+                return Response({"detail": f"Product {itm['producto_id']} not found"}, status=status.HTTP_400_BAD_REQUEST)
+            cantidad = itm["cantidad"]
+            total = (prod.precio * Decimal(cantidad))
+            tx = Transaction.objects.create(
+                usuario=request.user,
+                producto=prod,
+                cantidad=cantidad,
+                total=total,
+                fecha=None,
+                estado='Carrito'
+            )
+            created.append({
+                "id": tx.id,
+                "producto": {
+                    "id": prod.id,
+                    "nombre": prod.nombre,
+                    "descripcion": prod.descripcion,
+                    "precio": str(prod.precio),
+                    "stock": prod.stock
+                },
+                "cantidad": tx.cantidad,
+                "total": str(tx.total),
+            })
+
+        return Response({"items": created}, status=status.HTTP_201_CREATED)
+
+
+class OrderAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        """
+        Espera: { "items": [ { "producto_id": 1, "cantidad": 2 }, ... ] }
+        Crea Transaction(s) con estado='Pedido', descuenta stock y devuelve resumen.
+        """
+        items = request.data.get('items')
+        if not isinstance(items, list):
+            return Response({'detail': 'Missing items list'}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = CartItemSerializer(data=items, many=True)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        created = []
+        try:
+            with db_transaction.atomic():
+                for itm in serializer.validated_data:
+                    try:
+                        prod = Product.objects.select_for_update().get(pk=itm['producto_id'])
+                    except Product.DoesNotExist:
+                        return Response({'detail': f"Product {itm['producto_id']} not found"}, status=status.HTTP_400_BAD_REQUEST)
+
+                    cantidad = itm['cantidad']
+                    if cantidad <= 0:
+                        return Response({'detail': f"Cantidad inválida para producto {prod.id}"}, status=status.HTTP_400_BAD_REQUEST)
+
+                    if prod.stock < cantidad:
+                        return Response({'detail': f"No hay suficiente stock para {prod.nombre}"}, status=status.HTTP_400_BAD_REQUEST)
+
+                    prod.stock -= cantidad
+                    prod.save()
+
+                    total = prod.precio * Decimal(cantidad)
+                    tx = Transaction.objects.create(
+                        usuario=request.user,
+                        producto=prod,
+                        cantidad=cantidad,
+                        total=total,
+                        fecha=timezone.now(),
+                        estado='Pedido'
+                    )
+                    created.append({
+                        'id': tx.id,
+                        'producto_id': prod.id,
+                        'cantidad': cantidad,
+                        'total': str(total)
+                    })
+        except Exception as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({'order_items': created}, status=status.HTTP_201_CREATED)

@@ -3,7 +3,6 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import User
 from .serializers import UserSerializer, RegisterSerializer, UpdateUserSerializer
@@ -31,7 +30,7 @@ class UserViewSet(viewsets.ModelViewSet):
 @permission_classes([permissions.AllowAny])
 def register(request):
     """
-    Registro público. No usa sesiones; el frontend debe pedir tokens en /api/user/login/ (o /api/token/).
+    Registro público. No usa sesiones; el frontend debe pedir tokens en /api/users/login/.
     """
     serializer = RegisterSerializer(data=request.data)
     if serializer.is_valid():
@@ -43,18 +42,17 @@ def register(request):
 @permission_classes([permissions.AllowAny])
 def logout(request):
     """
-    Logout: recibe {"refresh": "<refresh_token>"} y lo blacklistea para invalidarlo.
+    Logout (sin blacklist): el servidor sólo confirma recepción.
+    Como no usamos token blacklist en este proyecto, la invalidez del token
+    debe manejarla el cliente eliminando access/refresh del almacenamiento.
+    Recibe {"refresh": "<refresh_token>"} y responde OK si fue enviado.
     """
     refresh = request.data.get('refresh')
     if not refresh:
         return Response({'detail': 'Refresh token requerido.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    try:
-        token = RefreshToken(refresh)
-        token.blacklist()
-        return Response({'detail': 'Logout exitoso.'}, status=status.HTTP_205_RESET_CONTENT)
-    except Exception:
-        return Response({'detail': 'Token inválido o ya revocado.'}, status=status.HTTP_400_BAD_REQUEST)
+    # No se realiza blacklisting en el servidor (por decisión del proyecto).
+    return Response({'detail': 'Logout exitoso. Borre tokens en el cliente.'}, status=status.HTTP_200_OK)
 
 class ProfileView(APIView):
     permission_classes = [IsAuthenticated]
