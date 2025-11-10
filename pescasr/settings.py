@@ -25,12 +25,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-ac6f9#*bd&j-=(tw4jekih!0l78^!-((b19p@4g%z+&qcm@j$='
+SECRET_KEY = os.environ.get(
+    "DJANGO_SECRET_KEY",
+    "django-insecure-ac6f9#*bd&j-=(tw4jekih!0l78^!-((b19p@4g%z+&qcm@j$="
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DJANGO_DEBUG", "True") == "True"
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 
 # Application definition
@@ -92,13 +95,14 @@ WSGI_APPLICATION = 'pescasr.wsgi.application'
 
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'pescasr',
-        'USER': 'root',
-        'PASSWORD': 'Ecommerce2025$',
-        'HOST': '127.0.0.1',  
-        'PORT': '3306',
+    "default": {
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": os.environ.get("MYSQL_DATABASE", "pescasr"),
+        "USER": os.environ.get("MYSQL_USER", "root"),
+        "PASSWORD": os.environ.get("MYSQL_PASSWORD", "Ecommerce2025$"),
+        "HOST": os.environ.get("MYSQL_HOST", "127.0.0.1"),
+        "PORT": os.environ.get("MYSQL_PORT", "3306"),
+        "OPTIONS": {"init_command": "SET sql_mode='STRICT_TRANS_TABLES'"},
     }
 }
 
@@ -214,4 +218,69 @@ LOGGING = {
             'propagate': False,
         },
     },
+}
+
+# Añadir estas importaciones y configuraciones al final del archivo o justo después de los imports existentes
+import os
+from datetime import timedelta
+try:
+    from corsheaders.defaults import default_headers
+except Exception:
+    default_headers = ()
+
+# Asegurar que INSTALLED_APPS y MIDDLEWARE existen en tu settings original.
+# Si ya existen, esto solo añade/asegura los paquetes necesarios sin borrar nada.
+try:
+    INSTALLED_APPS  # noqa
+except NameError:
+    INSTALLED_APPS = []
+
+for _app in ("rest_framework", "rest_framework_simplejwt", "drf_spectacular", "corsheaders"):
+    if _app not in INSTALLED_APPS:
+        INSTALLED_APPS.append(_app)
+
+try:
+    MIDDLEWARE  # noqa
+except NameError:
+    MIDDLEWARE = []
+
+# Insertar cors y whitenoise si no están (en posiciones seguras)
+if "corsheaders.middleware.CorsMiddleware" not in MIDDLEWARE:
+    MIDDLEWARE.insert(0, "corsheaders.middleware.CorsMiddleware")
+if "whitenoise.middleware.WhiteNoiseMiddleware" not in MIDDLEWARE:
+    # colocar después de CorsMiddleware (posición 1 si no hay nada más arriba)
+    pos = 1 if len(MIDDLEWARE) >= 1 else 0
+    MIDDLEWARE.insert(pos, "whitenoise.middleware.WhiteNoiseMiddleware")
+
+# Static files (whitenoise)
+STATIC_URL = os.environ.get("STATIC_URL", "/static/")
+STATIC_ROOT = Path(__file__).resolve().parent.parent / "staticfiles"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+# DRF + schema + JWT (valores tomados de env si están)
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(os.environ.get("JWT_ACCESS_MINUTES", "30"))),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=int(os.environ.get("JWT_REFRESH_DAYS", "7"))),
+    "AUTH_HEADER_TYPES": tuple(os.environ.get("JWT_AUTH_HEADER_TYPES", "Bearer").split(",")),
+}
+
+# CORS / CSRF - ajustar CORS_ALLOWED_ORIGINS y CSRF_TRUSTED_ORIGINS desde env en Railway
+CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = list(default_headers) + ["Authorization"]
+
+CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS", "http://localhost:3000").split(",")
+
+# drf-spectacular settings (opcionalmente ajustar desde env)
+SPECTACULAR_SETTINGS = {
+    "TITLE": os.environ.get("SPECTACULAR_TITLE", "Pescasr API"),
+    "VERSION": os.environ.get("SPECTACULAR_VERSION", "1.0.0"),
 }

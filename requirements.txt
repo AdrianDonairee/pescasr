@@ -24,3 +24,8 @@ mysqlclient==2.2.7
 PyJWT==2.10.1
 Pillow==10.3.0
 requests==2.31.0
+
+# Añadidos necesarios para despliegue / documentación
+drf-spectacular==0.27.1
+gunicorn==21.2.0
+whitenoise==6.5.0
