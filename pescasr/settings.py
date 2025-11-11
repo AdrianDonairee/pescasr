@@ -169,15 +169,18 @@ if _frontend:
 else:
     CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
 
-# Allow all origins in DEBUG to ease local development
-if DEBUG:
-    CORS_ALLOW_ALL_ORIGINS = True
+# permitir previews de Netlify (subdominios tipo 6913...--pescasr.netlify.app)
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https?://([a-z0-9-]+--)?pescasr\.netlify\.app$",
+    r"^https?://localhost(:\d+)?$",
+]
 
-# Control credentials via env (JWT in headers normally doesn't need credentials)
-CORS_ALLOW_CREDENTIALS = os.environ.get("CORS_ALLOW_CREDENTIALS", "false").lower() in ("1", "true", "yes")
+# headers y credenciales
+CORS_ALLOW_HEADERS = list(default_headers) + ["authorization", "Authorization", "content-type"]
+CORS_ALLOW_CREDENTIALS = os.environ.get("CORS_ALLOW_CREDENTIALS", "false").lower() in ("1","true","yes")
 
-# Ensure Authorization header is allowed (case-insensitive)
-CORS_ALLOW_HEADERS = list(default_headers) + ["authorization", "Authorization"]
+# (opcional temporal de debug)
+# CORS_ALLOW_ALL_ORIGINS = True
 
 CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS", "http://localhost:3000").split(",")
 
