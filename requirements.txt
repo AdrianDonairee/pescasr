@@ -1,4 +1,4 @@
-Django==5.1.9
+Django>=4.2,<5
 djangorestframework==3.16.1
 djangorestframework-simplejwt==5.2.0
 drf-spectacular==0.27.1
@@ -13,5 +13,4 @@ python-dotenv==1.0.0
 PyJWT==2.10.1
 requests==2.31.0
 
-# ensure pkg_resources is available at runtime
 setuptools>=67.0.0
