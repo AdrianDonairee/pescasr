@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 from datetime import timedelta
 from corsheaders.defaults import default_headers
+from urllib.parse import urlparse, unquote
 
 # Cargar variables de entorno desde .env (solo en desarrollo)
 from dotenv import load_dotenv
@@ -71,8 +72,31 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "pescasr.wsgi.application"
 
-# DATABASE: si están las env vars de MySQL usamos mysql-connector; si no, fallback a SQLite (dev)
-if os.environ.get("MYSQL_HOST") and os.environ.get("MYSQL_DATABASE") and os.environ.get("MYSQL_USER"):
+# Helper: parse a mysql URL like mysql://user:pass@host:port/dbname
+def _db_from_url(url: str):
+    parsed = urlparse(url)
+    name = parsed.path.lstrip("/") if parsed.path else ""
+    user = unquote(parsed.username) if parsed.username else ""
+    password = unquote(parsed.password) if parsed.password else ""
+    host = parsed.hostname or ""
+    port = str(parsed.port) if parsed.port else "3306"
+    return {
+        "default": {
+            "ENGINE": "mysql.connector.django",
+            "NAME": name,
+            "USER": user,
+            "PASSWORD": password,
+            "HOST": host,
+            "PORT": port,
+            "OPTIONS": {"init_command": "SET sql_mode='STRICT_TRANS_TABLES'"},
+        }
+    }
+
+# DATABASE: soporta MYSQL_URL/DATABASE_URL (connection string) o variables individuales; si no, fallback a SQLite (dev)
+mysql_url = os.environ.get("MYSQL_URL") or os.environ.get("DATABASE_URL") or os.environ.get("MYSQL_PUBLIC_URL")
+if mysql_url:
+    DATABASES = _db_from_url(mysql_url)
+elif os.environ.get("MYSQL_HOST") and os.environ.get("MYSQL_DATABASE") and os.environ.get("MYSQL_USER"):
     DATABASES = {
         "default": {
             "ENGINE": "mysql.connector.django",
