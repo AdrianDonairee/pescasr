@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework.test import APITestCase
 from rest_framework import status
+from rest_framework_simplejwt.tokens import RefreshToken
 
 User = get_user_model()
 
@@ -46,8 +47,14 @@ class UserTests(TestCase):
 
 class SecurityTests(APITestCase):
     def setUp(self):
-        self.user1 = User.objects.create_user(username='user1', password='pass1', email='user1@test.com')
-        self.user2 = User.objects.create_user(username='user2', password='pass2', email='user2@test.com')
+        self.user1 = User.objects.create_user(username='user1', password='pass1', email='user1@test.com')   
+        self.user2 = User.objects.create_user(username='user2', password='pass2', email='user2@test.com')   
+
+    def _auth_client_for(self, user):
+        refresh = RefreshToken.for_user(user)
+        client = self.client_class()
+        client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(refresh.access_token)}')
+        return client
 
     def test_access_protected_endpoint_without_auth(self):
         url = reverse('users-detail', args=[self.user1.id])
@@ -55,13 +62,13 @@ class SecurityTests(APITestCase):
         self.assertIn(response.status_code, [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN])
 
     def test_user_cannot_access_other_user_data(self):
-        self.client.login(username='user1', password='pass1')
+        client = self._auth_client_for(self.user1)
         url = reverse('users-detail', args=[self.user2.id])
-        response = self.client.get(url)
+        response = client.get(url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_user_can_access_own_data(self):
-        self.client.login(username='user1', password='pass1')
+        client = self._auth_client_for(self.user1)
         url = reverse('users-detail', args=[self.user1.id])
-        response = self.client.get(url)
+        response = client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
