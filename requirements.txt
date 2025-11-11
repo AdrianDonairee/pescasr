@@ -12,3 +12,6 @@ whitenoise==6.5.0
 python-dotenv==1.0.0
 PyJWT==2.10.1
 requests==2.31.0
+
+# ensure pkg_resources is available at runtime
+setuptools>=67.0.0
