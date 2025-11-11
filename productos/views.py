@@ -5,7 +5,7 @@ from .serializers import ProductoSerializer, CategoriaSerializer
 
 class IsAdminOrReadOnly(BasePermission):
     """
-    Allow any read-only requests, but only allow staff users to perform unsafe methods.
+    Allow read-only for anyone; only staff users can perform unsafe methods.
     """
     def has_permission(self, request, view):
         if request.method in SAFE_METHODS:
@@ -13,7 +13,6 @@ class IsAdminOrReadOnly(BasePermission):
         return bool(request.user and request.user.is_authenticated and request.user.is_staff)
 
 class ProductoViewSet(viewsets.ModelViewSet):
-    # traer categoria con select_related para que serializer tenga datos anidados sin N+1
     queryset = Producto.objects.select_related("categoria").all().order_by("id")
     serializer_class = ProductoSerializer
     permission_classes = [IsAdminOrReadOnly]
@@ -21,4 +20,9 @@ class ProductoViewSet(viewsets.ModelViewSet):
 class CategoriaViewSet(viewsets.ModelViewSet):
     queryset = Categoria.objects.all().order_by("nombre")
     serializer_class = CategoriaSerializer
-    permission_classes = [IsAdminOrReadOnly]
+
+    def get_permissions(self):
+        # list/retrieve are public; create/update/delete require admin
+        if self.action in ['list', 'retrieve']:
+            return [permissions.AllowAny()]
+        return [permissions.IsAdminUser()]
