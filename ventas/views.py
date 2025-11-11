@@ -10,6 +10,39 @@ from rest_framework import status
 from django.db import transaction as db_transaction
 from django.utils import timezone
 
+# nuevo: importar el modelo real de productos
+try:
+    from productos.models import Producto as ProductoProd
+except Exception:
+    ProductoProd = None
+
+# helper: si no existe Product en ventas, intentar crear espejo desde productos.Producto
+def get_or_create_ventas_product_by_id(producto_id):
+    """
+    Return a ventas.Product instance for given producto_id.
+    - If ventas.Product with pk exists -> return it.
+    - Else, if productos.Producto exists -> create ventas.Product copy and return it.
+    - Else -> raise Product.DoesNotExist
+    """
+    try:
+        return Product.objects.get(pk=producto_id)
+    except Product.DoesNotExist:
+        # try to find in productos app and create a mirror
+        if ProductoProd is None:
+            raise
+        try:
+            prod_src = ProductoProd.objects.get(pk=producto_id)
+        except ProductoProd.DoesNotExist:
+            raise Product.DoesNotExist()
+        # create ventas.Product mirror (minimal fields to match Product model)
+        mirror = Product.objects.create(
+            nombre=prod_src.nombre,
+            descripcion=getattr(prod_src, "descripcion", "") or "",
+            precio=getattr(prod_src, "precio", prod_src.precio),
+            stock=getattr(prod_src, "stock", getattr(prod_src, "cantidad", 0)) or 0
+        )
+        return mirror
+
 
 class IsOwnerOrAdmin(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
@@ -101,7 +134,8 @@ class CartAPIView(APIView):
         created = []
         for itm in serializer.validated_data:
             try:
-                prod = Product.objects.get(pk=itm["producto_id"])
+                # ahora usamos helper que intenta crear espejo si hace falta
+                prod = get_or_create_ventas_product_by_id(itm["producto_id"])
             except Product.DoesNotExist:
                 return Response({"detail": f"Product {itm['producto_id']} not found"}, status=status.HTTP_400_BAD_REQUEST)
             cantidad = itm["cantidad"]
@@ -151,7 +185,7 @@ class OrderAPIView(APIView):
             with db_transaction.atomic():
                 for itm in serializer.validated_data:
                     try:
-                        prod = Product.objects.select_for_update().get(pk=itm['producto_id'])
+                        prod = get_or_create_ventas_product_by_id(itm['producto_id'])
                     except Product.DoesNotExist:
                         return Response({'detail': f"Product {itm['producto_id']} not found"}, status=status.HTTP_400_BAD_REQUEST)
 
