@@ -193,11 +193,30 @@ class OrderAPIView(APIView):
                     if cantidad <= 0:
                         return Response({'detail': f"Cantidad inválida para producto {prod.id}"}, status=status.HTTP_400_BAD_REQUEST)
 
+                    # validar stock en el producto de ventas (si aplica)
                     if prod.stock < cantidad:
                         return Response({'detail': f"No hay suficiente stock para {prod.nombre}"}, status=status.HTTP_400_BAD_REQUEST)
 
+                    # descontar stock en ventas.Product
                     prod.stock -= cantidad
                     prod.save()
+
+                    # -------------------------
+                    # NUEVO: también descontar stock en productos.Producto (si existe)
+                    # usamos el producto_id original que vino en el payload (itm['producto_id'])
+                    try:
+                        if ProductoProd is not None:
+                            try:
+                                prod_src = ProductoProd.objects.get(pk=itm['producto_id'])
+                                prod_src.stock = max(0, (prod_src.stock or 0) - cantidad)
+                                prod_src.save()
+                            except ProductoProd.DoesNotExist:
+                                # producto original no existe -> ignorar (ya chequeado antes)
+                                pass
+                    except Exception:
+                        # no fallar el pedido por errores de sincronización con productos app
+                        pass
+                    # -------------------------
 
                     total = prod.precio * Decimal(cantidad)
                     tx = Transaction.objects.create(
