@@ -17,7 +17,7 @@ load_dotenv(BASE_DIR / ".env")
 
 # Security / env
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-secret-key")
-DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() in ("1", "true", "yes")
+DEBUG = os.environ.get("DEBUG", os.environ.get("DJANGO_DEBUG", "false")).lower() in ("1", "true", "yes")
 # aceptar hosts de entorno o incluir testserver para los tests
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver").split(",")
 
