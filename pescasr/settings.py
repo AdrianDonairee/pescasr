@@ -18,8 +18,10 @@ load_dotenv(BASE_DIR / ".env")
 # Security / env
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-secret-key")
 DEBUG = os.environ.get("DEBUG", os.environ.get("DJANGO_DEBUG", "false")).lower() in ("1", "true", "yes")
+
 # aceptar hosts de entorno o incluir testserver para los tests
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver").split(",")
+_raw_hosts = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver")
+ALLOWED_HOSTS = [h.strip() for h in _raw_hosts.split(",") if h.strip()]
 
 # Apps (mantengo tus apps + necesarios)
 INSTALLED_APPS = [
@@ -160,9 +162,22 @@ SIMPLE_JWT = {
 AUTH_USER_MODEL = "users.User"
 
 # CORS / CSRF (ajustar desde env en Railway)
-CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_HEADERS = list(default_headers) + ["Authorization"]
+# Prefer FRONTEND_URL if provided, otherwise fall back to CORS_ALLOWED_ORIGINS env
+_frontend = os.environ.get("FRONTEND_URL")
+if _frontend:
+    CORS_ALLOWED_ORIGINS = [_frontend]
+else:
+    CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+
+# Allow all origins in DEBUG to ease local development
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+
+# Control credentials via env (JWT in headers normally doesn't need credentials)
+CORS_ALLOW_CREDENTIALS = os.environ.get("CORS_ALLOW_CREDENTIALS", "false").lower() in ("1", "true", "yes")
+
+# Ensure Authorization header is allowed (case-insensitive)
+CORS_ALLOW_HEADERS = list(default_headers) + ["authorization", "Authorization"]
 
 CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS", "http://localhost:3000").split(",")
 
