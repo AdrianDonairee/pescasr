@@ -5,7 +5,8 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .views import register, ProfileView, UserViewSet, logout
 
 router = routers.DefaultRouter()
-router.register(r'users', UserViewSet, basename='user')
+# Cambié basename a 'users' para que las URLs queden como "users-detail" / "users-list"
+router.register(r'users', UserViewSet, basename='users')
 
 urlpatterns = [
     # endpoints creados por el ViewSet (listar/crear/recuperar/actualizar usuarios)
